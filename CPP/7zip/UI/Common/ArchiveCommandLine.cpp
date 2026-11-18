@@ -9,8 +9,10 @@
 #include <io.h>
 #endif
 #else
-// for isatty()
+// for isatty(), and for read()/close() used by the secpack passphrase patch
 #include <unistd.h>
+// for getenv()/atoi()/unsetenv() used by the secpack passphrase patch
+#include <stdlib.h>
 #endif
 
 #include <stdio.h>
