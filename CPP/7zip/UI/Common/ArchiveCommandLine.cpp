@@ -44,6 +44,41 @@
 extern bool g_CaseSensitive;
 extern bool g_PathTrailReplaceMode;
 
+/* secpack fork: read a single-line passphrase from the file descriptor named
+   by SECPACK_PASS_FD (inherited from the secpack launcher). This keeps the
+   passphrase out of the process command line and out of the environment. */
+#ifndef _WIN32
+static bool ReadSecpackPasswordFromFd(UString &s)
+{
+  const char *fdStr = getenv("SECPACK_PASS_FD");
+  if (!fdStr || !*fdStr)
+    return false;
+  const int fd = atoi(fdStr);
+  if (fd < 0)
+    return false;
+  AString a;
+  for (;;)
+  {
+    char c = 0;
+    const ssize_t n = read(fd, &c, 1);
+    if (n <= 0)
+      break;
+    if (c == '\n')
+      break;
+    if (c != '\r')
+      a += c;
+  }
+  close(fd);
+  unsetenv("SECPACK_PASS_FD");
+  if (a.IsEmpty())
+    return false;
+  s = MultiByteToUnicodeString(a, CP_UTF8);
+  return true;
+}
+#else
+static bool ReadSecpackPasswordFromFd(UString & /* s */) { return false; }
+#endif
+
 #ifdef Z7_LARGE_PAGES
 extern
 bool g_LargePagesMode;
@@ -1566,6 +1601,14 @@ void CArcCmdLineParser::Parse2(CArcCmdLineOptions &options)
   options.PasswordEnabled = parser[NKey::kPassword].ThereIs;
   if (options.PasswordEnabled)
     options.Password = parser[NKey::kPassword].PostStrings[0];
+  // secpack fork: "-p" with no value plus SECPACK_PASS_FD=<n> reads the
+  // passphrase from file descriptor <n>, so it never shows up in argv.
+  if (options.PasswordEnabled && options.Password.IsEmpty())
+  {
+    UString psw;
+    if (ReadSecpackPasswordFromFd(psw))
+      options.Password = psw;
+  }
   #endif
 
   options.ShowDialog = parser[NKey::kShowDialog].ThereIs;

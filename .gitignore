@@ -1,0 +1,4 @@
+# build outputs
+CPP/7zip/Bundles/*/_o/
+CPP/7zip/Bundles/*/b/
+CPP/7zip/Bundles/*/*.o

@@ -275,12 +275,13 @@ UInt64 CInByte2::ReadUInt64()
   return res;
 }
 
-#define Y0  '7'
-#define Y1  'z'
-#define Y2  0xBC
-#define Y3  0xAF
-#define Y4  0x27
-#define Y5  0x1C
+// secpack fork: custom signature "SPK7" + 2 bytes (see 7zHeader.cpp)
+#define Y0  'S'
+#define Y1  'P'
+#define Y2  'K'
+#define Y3  '7'
+#define Y4  0x9E
+#define Y5  0xD1
 
 #define IS_SIGNATURE(p)( \
         (p)[2] == Y2 &&  \
@@ -341,12 +342,30 @@ static inline bool TestSignature2(const Byte *p)
  #endif
 }
 
+/* secpack fork.
+   The start header is stored XOR-masked with a fixed 32-byte mask, so a
+   secpack file has no recognizable 7z signature at offset 0. Test the raw
+   bytes first (plain 7z compatibility is not a goal, but it makes debugging
+   with unmasked payloads possible), then un-mask in place and test again. */
+static inline bool TestSignature2_Secpack(Byte *p)
+{
+  if (TestSignature2(p))
+    return true;
+  Byte tmp[kSecpackHeaderMaskSize];
+  for (unsigned i = 0; i < kSecpackHeaderMaskSize; i++)
+    tmp[i] = (Byte)(p[i] ^ kSecpackHeaderMask[i]);
+  if (!TestSignature2(tmp))
+    return false;
+  memcpy(p, tmp, kSecpackHeaderMaskSize);
+  return true;
+}
+
 
 HRESULT CInArchive::FindAndReadSignature(IInStream *stream, const UInt64 *searchHeaderSizeLimit)
 {
   RINOK(ReadStream_FALSE(stream, _header, kHeaderSize))
 
-  if (TestSignature2(_header))
+  if (TestSignature2_Secpack(_header))
     return S_OK;
   if (searchHeaderSizeLimit && *searchHeaderSizeLimit == 0)
     return S_FALSE;
@@ -389,9 +408,11 @@ HRESULT CInArchive::FindAndReadSignature(IInStream *stream, const UInt64 *search
       if (p >= lim)
         break;
       pos = (UInt32)(p - buf);
-      if (TestStartCrc(p))
+      Byte cand[kHeaderSize];
+      memcpy(cand, p, kHeaderSize);
+      if (TestSignature2_Secpack(cand))
       {
-        memcpy(_header, p, kHeaderSize);
+        memcpy(_header, cand, kHeaderSize);
         _arhiveBeginStreamPosition += offset + pos;
         return InStream_SeekSet(stream, _arhiveBeginStreamPosition + kHeaderSize);
       }

@@ -41,6 +41,13 @@ static void FillSignature(Byte *buf)
   buf[kSignatureSize + 1] = 4;
 }
 
+// secpack fork: mask the 32-byte start header (see 7zHeader.cpp).
+static void SecpackMaskStartHeader(Byte *buf)
+{
+  for (unsigned i = 0; i < kSecpackHeaderMaskSize; i++)
+    buf[i] ^= kSecpackHeaderMask[i];
+}
+
 #ifdef Z7_7Z_VOL
 HRESULT COutArchive::WriteFinishSignature()
 {
@@ -73,6 +80,7 @@ HRESULT COutArchive::WriteStartHeader(const CStartHeader &h)
   SetUInt64(buf + 8 + 12, h.NextHeaderSize);
   SetUInt32(buf + 8 + 20, h.NextHeaderCRC);
   SetUInt32(buf + 8, CrcCalc(buf + 8 + 4, 20));
+  SecpackMaskStartHeader(buf);
   return WriteDirect(buf, sizeof(buf));
 }
 
@@ -114,6 +122,7 @@ HRESULT COutArchive::Create_and_WriteStartPrefix(ISequentialOutStream *stream /*
     Byte buf[32];
     FillSignature(buf);
     memset(&buf[8], 0, 32 - 8);
+    SecpackMaskStartHeader(buf);
     return WriteDirect(buf, sizeof(buf));
   }
   #ifdef Z7_7Z_VOL

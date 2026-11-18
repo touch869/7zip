@@ -11,6 +11,12 @@ namespace N7z {
 const unsigned kSignatureSize = 6;
 extern Byte kSignature[kSignatureSize];
 
+// secpack fork: the 32-byte start header (signature + version + start-header
+// CRC + next-header coordinates) is XOR-masked on disk with a fixed mask.
+// kSecpackHeaderMaskSize must equal NArchive::N7z::kHeaderSize (32) from 7zIn.h.
+const unsigned kSecpackHeaderMaskSize = 32;
+extern Byte kSecpackHeaderMask[kSecpackHeaderMaskSize];
+
 // #define Z7_7Z_VOL
 // 7z-MultiVolume is not finished yet.
 // It can work already, but I still do not like some

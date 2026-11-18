@@ -9,10 +9,13 @@
 namespace NArchive {
 namespace N7z {
 
-static Byte k_Signature_Dec[kSignatureSize] = {'7' + 1, 'z', 0xBC, 0xAF, 0x27, 0x1C};
+// secpack fork: decoder-side signature must match kSignature in 7zHeader.cpp.
+// Real secpack files mask the start header, so detection happens through the
+// .spk extension (or an explicit -t7z) rather than the signature.
+static Byte k_Signature_Dec[kSignatureSize] = {'S', 'P', 'K', '7', 0x9E, 0xD1};
 
 REGISTER_ARC_IO_DECREMENT_SIG(
-  "7z", "7z", NULL, 7,
+  "7z", "spk", NULL, 7,
   k_Signature_Dec,
   0,
     NArcInfoFlags::kFindSignature
